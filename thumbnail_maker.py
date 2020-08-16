@@ -1,21 +1,22 @@
 import logging
-# thumbnail_maker.py
-# thumbnail_maker.py
-# thumbnail_maker.py
-# thumbnail_maker.py
-
-import time
 import os
-
+import threading
+import time
 from urllib.parse import urlparse
 from urllib.request import urlretrieve
 
 import PIL
 from PIL import Image
 
+# thumbnail_maker.py
+# thumbnail_maker.py
+# thumbnail_maker.py
+# thumbnail_maker.py
+
 root_logger = logging.getLogger()
 root_logger.handlers = []
-logging.basicConfig(filename='logfile.log', level=logging.DEBUG)
+FORMAT = "[%(threadName)s, %(asctime)s, %(levelname)s] %(message)s"
+logging.basicConfig(filename='logfile.log', level=logging.DEBUG, format=FORMAT)
 
 
 class ThumbnailMakerService(object):
@@ -23,6 +24,12 @@ class ThumbnailMakerService(object):
         self.home_dir = home_dir
         self.input_dir = self.home_dir + os.path.sep + 'incoming'
         self.output_dir = self.home_dir + os.path.sep + 'outgoing'
+
+    def download_image(self, url):
+        logging.info("downloading image at URL: " + url)
+        img_filename = urlparse(url).path.split('/')[-1]
+        urlretrieve(url, self.input_dir + os.path.sep + img_filename)
+        logging.info("image save to location: " + (self.input_dir + os.path.sep + img_filename))
 
     def download_images(self, img_url_list):
         # validate inputs
@@ -32,11 +39,17 @@ class ThumbnailMakerService(object):
 
         logging.info("beginning image downloads")
 
+        threads = []
         start = time.perf_counter()
         for url in img_url_list:
             # download each image and save to the input dir 
-            img_filename = urlparse(url).path.split('/')[-1]
-            urlretrieve(url, self.input_dir + os.path.sep + img_filename)
+            t = threading.Thread(target=self.download_image, args=(url,))
+            threads.append(t)
+            t.start()
+
+        for t in threads:
+            t.join()
+
         end = time.perf_counter()
 
         logging.info("downloaded {} images in {} seconds".format(len(img_url_list), end - start))
@@ -77,7 +90,7 @@ class ThumbnailMakerService(object):
         start = time.perf_counter()
 
         self.download_images(img_url_list)
-        self.perform_resizing()
+        # self.perform_resizing()
 
         end = time.perf_counter()
         logging.info("END make_thumbnails in {} seconds".format(end - start))
